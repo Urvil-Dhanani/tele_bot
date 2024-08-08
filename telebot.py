@@ -2,7 +2,6 @@ from aiogram import Bot, Dispatcher, executor, types   # refer aiogram official 
 from dotenv import load_dotenv
 import os
 from langchain_groq import ChatGroq
-from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
@@ -18,17 +17,6 @@ GROQ_API=os.getenv("GROQ_API_KEY")
 # Initializing the BOT
 bot=Bot(token=TELE_API)
 dispatcher=Dispatcher(bot=bot)
-
-# # To remember the past conversation
-# class Reference:
-#     def __init__(self) -> None:
-#         self.response=""
-
-# reference=Reference()
-
-# # clearing the past
-# def clear_past():
-#     reference.response=""
 
 # lets define the command handler
 # /start command
@@ -59,6 +47,16 @@ async def helper(cmd:types.Message):
     """
     await cmd.answer(text=help_command)
 
+
+# Session History 
+memory_store={}
+def fatch_session_history(session_id:str)->BaseChatMessageHistory:
+    if session_id not in memory_store:
+        memory_store[session_id]=ChatMessageHistory()
+    return memory_store[session_id]
+memory_config={"configurable":{"session_id":"my_chat"}}
+
+
 # /clear command
 @dispatcher.message_handler(commands=['clear'])
 async def clear_memory(cmd:types.Message):
@@ -67,20 +65,11 @@ async def clear_memory(cmd:types.Message):
     Args:
         cmd (types.Message): /clear
     """
-    
+    global memory_store
+    memory_store={}    
+    global memory_config
+    memory_config=memory_config={"configurable":{"session_id":"new_chat"}}
     await cmd.answer("Past conversation and context are cleared !!!")
-
-
-# Session History 
-memory_store={}
-def fatch_session_history(session_id:str)->BaseChatMessageHistory:
-    if session_id not in memory_store:
-        memory_store[session_id]=ChatMessageHistory()
-    return memory_store[session_id]
-
-
-
-
 
 
 # users input
@@ -103,10 +92,8 @@ async def chat_bot(message:types.Message):
     llm_with_history=RunnableWithMessageHistory(runnable=llm,
                                                 get_session_history=fatch_session_history)
     response=llm_with_history.invoke(input=message.text,
-                                     config={"configurable":{"session_id":"my_chat"}})
+                                     config=memory_config)
     await message.answer(response.content)
-
-
 
 
 if __name__ == "__main__":
