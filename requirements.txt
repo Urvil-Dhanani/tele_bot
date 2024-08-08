@@ -1,3 +1,5 @@
 python-dotenv
 langchain_groq
 aiogram==2.5
+langchain
+langchain_community
